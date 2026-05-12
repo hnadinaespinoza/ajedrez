@@ -612,7 +612,14 @@ function renderBoardsGrid(tables){
     const board=tbl.board?strBoard(tbl.board):mkBoard();
     const status=tbl.status||'waiting';
     const statusTxt={waiting:'esperando',playing:'en juego',ended:'finalizada'}[status]||status;
-    card.innerHTML=`<div class="bc-header"><span class="bc-title">Mesa ${tbl.tableNum||tid.slice(-3)}</span><span class="bc-status ${status}">${statusTxt}</span></div>`;
+    const hdr=document.createElement('div');hdr.className='bc-header';
+    hdr.innerHTML='<span class="bc-title">Mesa '+(tbl.tableNum||tid.slice(-3))+'</span><span class="bc-status '+status+'">'+statusTxt+'</span>';
+    const delBtn=document.createElement('button');
+    delBtn.textContent='X';delBtn.title='Eliminar mesa';
+    delBtn.style.cssText='background:rgba(220,80,80,0.2);border:1px solid rgba(220,80,80,0.4);color:#ff8080;border-radius:5px;padding:1px 7px;font-size:11px;cursor:pointer;margin-left:6px;font-weight:bold';
+    delBtn.onclick=(e)=>{e.stopPropagation();deleteTable(tid,tbl);};
+    hdr.appendChild(delBtn);
+    card.appendChild(hdr);
     const mini=document.createElement('div');mini.className='mini-board';
     for(let r=0;r<8;r++)for(let f=0;f<8;f++){
       const sq=document.createElement('div');sq.className='mini-sq '+((r+f)%2===0?'ml':'md');
@@ -621,18 +628,33 @@ function renderBoardsGrid(tables){
       mini.appendChild(sq);
     }
     card.appendChild(mini);
-    card.innerHTML+=`<div class="bc-footer"><span class="bc-players">${tbl.nameWhite||'?'} vs ${tbl.nameBlack||'?'}</span><span class="bc-turn">${tbl.turn==='w'?'Blancas':'Negras'}</span></div>`;
-    card.onclick=()=>openTableFocus(tid,tbl);
+    const ftr=document.createElement('div');ftr.className='bc-footer';
+    ftr.innerHTML='<span class="bc-players">'+(tbl.nameWhite||'?')+' vs '+(tbl.nameBlack||'?')+'</span>';
+    const tipBtn=document.createElement('button');
+    tipBtn.textContent='Consejo';
+    tipBtn.style.cssText='background:rgba(212,168,67,0.12);border:1px solid rgba(212,168,67,0.3);color:var(--gold);border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer';
+    tipBtn.onclick=(e)=>{e.stopPropagation();openTableFocus(tid,tbl);};
+    ftr.appendChild(tipBtn);
+    card.appendChild(ftr);
     el.appendChild(card);
   });
 }
 
+window.deleteTable=async function(tid,tbl){
+  if(!confirm('Eliminar Mesa '+(tbl.tableNum||'')+': '+(tbl.nameWhite||'?')+' vs '+(tbl.nameBlack||'?')+'?'))return;
+  const fbdb=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
+  if(tbl.uidWhite)await update(ref(db,'rooms/'+roomId+'/users/'+tbl.uidWhite),{assignedTable:null,assignedRole:null});
+  if(tbl.uidBlack)await update(ref(db,'rooms/'+roomId+'/users/'+tbl.uidBlack),{assignedTable:null,assignedRole:null});
+  await fbdb.remove(ref(db,'rooms/'+roomId+'/tables/'+tid));
+  push(ref(db,'rooms/'+roomId+'/chat'),{type:'system',text:'Mesa '+(tbl.tableNum||'')+' eliminada.',ts:serverTimestamp()});
+};
+
 // table focus for coach tip
 function openTableFocus(tid,tbl){
-  const tip=prompt(`Consejo para Mesa ${tbl.tableNum||tid.slice(-3)} (${tbl.nameWhite||'?'} vs ${tbl.nameBlack||'?'}):`);
+  const tip=prompt('Consejo para Mesa '+(tbl.tableNum||tid.slice(-3))+' ('+tbl.nameWhite+' vs '+tbl.nameBlack+'):');
   if(tip&&tip.trim()){
-    update(ref(db,`rooms/${roomId}/tables/${tid}`),{coachTip:tip.trim(),coachTipTs:serverTimestamp()});
-    push(ref(db,`rooms/${roomId}/chat`),{type:'tip',name:myName,role:'coach',text:`💡 Consejo para Mesa ${tbl.tableNum||''}: ${tip.trim()}`,ts:serverTimestamp()});
+    update(ref(db,'rooms/'+roomId+'/tables/'+tid),{coachTip:tip.trim(),coachTipTs:serverTimestamp()});
+    push(ref(db,'rooms/'+roomId+'/chat'),{type:'tip',name:myName,role:'coach',text:'Consejo Mesa '+(tbl.tableNum||'')+': '+tip.trim(),ts:serverTimestamp()});
   }
 }
 
@@ -665,7 +687,7 @@ window.confirmAssign=async function(){
   const bVal=document.getElementById('assignBlack').value;
   const tableNum=parseInt(document.getElementById('assignTable').value);
   if(!wVal||!bVal||wVal===bVal){alert('Selecciona dos jugadores distintos.');return;}
-  const[wId,wName]=wVal.split(':');const[bId,bName]=bVal.split(':');
+  const wParts=wVal.split(':');const wId=wParts[0];const wName=wParts.slice(1).join(':');const bParts=bVal.split(':');const bId=bParts[0];const bName=bParts.slice(1).join(':');
   const newBoard=mkBoard();
   const tableId=genId(8).toLowerCase();
   const cr={wK:true,wQ:true,bK:true,bQ:true};
