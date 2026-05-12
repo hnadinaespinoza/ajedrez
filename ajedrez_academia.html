@@ -88,8 +88,8 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-
 .bc-status.ended{color:var(--red)}
 .mini-board{display:grid;grid-template-columns:repeat(8,1fr);width:100%;aspect-ratio:1}
 .mini-sq{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:clamp(7px,1.5vw,14px)}
-.mini-sq .wp{color:#ffffff;-webkit-text-stroke:1px #000;}
-.mini-sq .bp{color:#000000;-webkit-text-stroke:0.5px #fff;}
+.mini-sq .wp{color:#fffef0;-webkit-text-stroke:1.5px #1a1008;paint-order:stroke fill;filter:drop-shadow(0 1px 1px rgba(0,0,0,0.8));}
+.mini-sq .bp{color:#1a1008;-webkit-text-stroke:1px #fffef0;paint-order:stroke fill;filter:drop-shadow(0 1px 1px rgba(0,0,0,0.5));}
 .mini-sq.ml{background:var(--light-sq)}
 .mini-sq.md{background:var(--dark-sq)}
 .mini-sq.mhl{background:rgba(45,212,160,0.5)!important}
@@ -203,9 +203,19 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-
 .psq.pchk{background:rgba(220,50,50,0.55)!important}
 .psq.pcoach{outline:3px solid var(--emerald);outline-offset:-3px;animation:coachpulse 1.5s ease-in-out 3}
 @keyframes coachpulse{0%,100%{outline-color:var(--emerald)}50%{outline-color:transparent}}
-.ppiece{font-size:min(44px,calc((100vw - 280px)/9));line-height:1;pointer-events:none}
-.ppiece.white-piece{color:#ffffff;-webkit-text-stroke:2px #1a1a1a;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.95));}
-.ppiece.black-piece{color:#0a0a0a;-webkit-text-stroke:1.5px #dddddd;filter:drop-shadow(0 1px 3px rgba(255,255,255,0.25));}
+.ppiece{font-size:min(44px,calc((100vw - 280px)/9));line-height:1;pointer-events:none;font-family:'Segoe UI Symbol','Apple Color Emoji',serif}
+.ppiece.white-piece{
+  color:#fffef0;
+  -webkit-text-stroke:2.5px #1a1008;
+  paint-order:stroke fill;
+  filter:drop-shadow(1px 2px 2px rgba(0,0,0,0.85)) drop-shadow(0 0 1px #000);
+}
+.ppiece.black-piece{
+  color:#1a1008;
+  -webkit-text-stroke:1.5px #fffef0;
+  paint-order:stroke fill;
+  filter:drop-shadow(1px 2px 2px rgba(0,0,0,0.6)) drop-shadow(0 0 2px rgba(255,255,240,0.3));
+}
 .coord-f{position:absolute;bottom:2px;right:3px;font-size:9px;font-family:'DM Mono',monospace;opacity:0.4;pointer-events:none}
 .coord-r{position:absolute;top:2px;left:3px;font-size:9px;font-family:'DM Mono',monospace;opacity:0.4;pointer-events:none}
 .pstatus{font-size:12px;padding:5px 16px;border-radius:20px;border:1px solid var(--border2);background:var(--bg2)}
@@ -459,6 +469,49 @@ const firebaseConfig={
 
 const app=initializeApp(firebaseConfig);
 const db=getDatabase(app);
+
+
+// ── PIECE DRAWING ──
+const PIECE_PATHS = {
+  K: 'M22,10 Q22,6 25,6 Q28,6 28,10 L27,12 L30,12 L30,14 L28,14 L28,15 Q32,17 33,22 L17,22 Q18,17 22,15 L22,14 L20,14 L20,12 L23,12 Z M15,22 L35,22 L37,46 L13,46 Z M13,46 Q10,47 10,49 L40,49 Q40,47 37,46 Z',
+  Q: 'M25,6 A2,2 0 1,1 25,10 M15,8 A2,2 0 1,1 15,12 M35,8 A2,2 0 1,1 35,12 M10,14 A2,2 0 1,1 10,18 M40,14 A2,2 0 1,1 40,18 M10,18 L15,42 L35,42 L40,18 L35,12 L25,32 L15,12 Z M13,42 Q10,43 10,45 L40,45 Q40,43 37,42 Z',
+  R: 'M14,8 L14,14 L18,14 L18,10 L22,10 L22,14 L28,14 L28,10 L32,10 L32,14 L36,14 L36,8 Z M14,14 L14,20 L36,20 L36,14 Z M16,20 L16,42 L34,42 L34,20 Z M13,42 Q10,43 10,45 L40,45 Q40,43 37,42 Z',
+  B: 'M25,6 A2,2 0 1,1 25,10 M20,10 Q20,22 14,28 Q12,30 14,32 Q16,34 18,32 Q20,30 22,28 L22,42 L28,42 L28,28 Q30,30 32,32 Q34,34 36,32 Q38,30 36,28 Q30,22 30,10 Z M13,42 Q10,43 10,45 L40,45 Q40,43 37,42 Z M23,12 L27,12 L27,16 L23,16 Z',
+  N: 'M18,42 L18,28 Q12,24 12,16 Q12,8 20,8 Q24,8 26,10 Q30,8 32,12 Q28,12 27,16 Q32,18 32,24 Q30,30 28,32 L28,42 Z M13,42 Q10,43 10,45 L40,45 Q40,43 37,42 Z',
+  P: 'M25,10 A6,6 0 1,1 25,22 A6,6 0 1,1 25,10 M20,22 Q18,30 16,36 L34,36 Q32,30 30,22 Z M14,36 L14,40 L36,40 L36,36 Z M12,40 Q10,41 10,43 L40,43 Q40,41 38,40 Z'
+};
+
+function drawPiece(canvas, piece) {
+  const ctx = canvas.getContext('2d');
+  const isWhite = piece[0] === 'w';
+  const type = piece[1];
+  const size = 56;
+  ctx.clearRect(0,0,size,size);
+  
+  // Use Unicode with canvas for crisp rendering
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '42px serif';
+  
+  const glyphs = {wK:'♔',wQ:'♕',wR:'♖',wB:'♗',wN:'♘',wP:'♙',bK:'♚',bQ:'♛',bR:'♜',bB:'♝',bN:'♞',bP:'♟'};
+  const glyph = glyphs[piece] || '';
+  
+  if(isWhite){
+    // White pieces: draw stroke first then fill
+    ctx.strokeStyle = '#1a1008';
+    ctx.lineWidth = 3;
+    ctx.strokeText(glyph, size/2, size/2+2);
+    ctx.fillStyle = '#fffcf0';
+    ctx.fillText(glyph, size/2, size/2+2);
+  } else {
+    // Black pieces
+    ctx.strokeStyle = '#fffcf0';
+    ctx.lineWidth = 2;
+    ctx.strokeText(glyph, size/2, size/2+2);
+    ctx.fillStyle = '#1a1008';
+    ctx.fillText(glyph, size/2, size/2+2);
+  }
+}
 
 // ── CHESS ENGINE ──
 const FILES=['a','b','c','d','e','f','g','h'];
@@ -818,7 +871,7 @@ function renderPlayerBoard(board,turn,ep,cr,lf,lt,myColor,gameOver){
       const isHint=lm.some(([lr,lf2])=>lr===r&&lf2===f);
       if(isHint){sq.classList.add('phint');if(board[r][f])sq.classList.add('pcap');}
       const p=board[r][f];
-      if(p){const sp=document.createElement('span');const pc=p[0]==='w'?'white-piece':'black-piece';sp.className='ppiece '+pc;sp.textContent=GL[p]||'';sq.appendChild(sp);}
+      if(p){const sp=document.createElement('canvas');sp.width=56;sp.height=56;sp.style.cssText='width:100%;height:100%;position:absolute;top:0;left:0;pointer-events:none';drawPiece(sp,p);sq.style.position='relative';sq.appendChild(sp);}
       if(r===7){const cf=document.createElement('span');cf.className='coord-f';cf.textContent=FILES[f];sq.appendChild(cf);}
       if(f===0){const cr2=document.createElement('span');cr2.className='coord-r';cr2.textContent=8-r;sq.appendChild(cr2);}
       sq.onclick=()=>handlePClick(r,f);
