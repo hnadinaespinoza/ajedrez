@@ -332,6 +332,7 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-
       <div class="stat-pill"><span class="dot dot-green"></span><span id="cOnline">0</span> conectados</div>
       <div class="stat-pill"><span class="dot dot-gold"></span><span id="cGames">0</span> partidas</div>
       <div class="stat-pill" style="cursor:pointer;color:var(--gold)" onclick="copyRoomLink()" title="Copiar enlace">🔗 Sala: <span id="cRoomId"></span></div>
+      <button onclick="clearRoom()" style="background:rgba(220,80,80,0.15);border:1px solid rgba(220,80,80,0.35);color:#ff8080;border-radius:8px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">🗑 Limpiar sala</button>
     </div>
   </div>
   <div class="coach-body">
@@ -704,6 +705,15 @@ window.confirmAssign=async function(){
   closeAssign();
 };
 
+window.clearRoom=async function(){
+  if(!confirm('¿Limpiar TODA la sala? Esto elimina todas las mesas, jugadores e historial.'))return;
+  const fbdb=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
+  await fbdb.remove(ref(db,'rooms/'+roomId+'/tables'));
+  await fbdb.remove(ref(db,'rooms/'+roomId+'/users'));
+  await fbdb.remove(ref(db,'rooms/'+roomId+'/chat'));
+  alert('Sala limpiada. Los jugadores deberan volver a entrar.');
+};
+
 window.sendGlobalChat=async function(){
   const inp=document.getElementById('cCoachInp');const txt=inp.value.trim();if(!txt)return;inp.value='';
   await push(ref(db,`rooms/${roomId}/chat`),{type:'text',name:myName,role:'coach',text:txt,ts:serverTimestamp()});
@@ -791,7 +801,10 @@ function subscribeTable(tid){
 }
 
 let pSelected=null;
+let pBoard=null,pTurn='w',pEp=null,pCr={wK:true,wQ:true,bK:true,bQ:true},pGameOver=false;
+
 function renderPlayerBoard(board,turn,ep,cr,lf,lt,myColor,gameOver){
+  pBoard=board;pTurn=turn;pEp=ep;pCr=cr;pGameOver=gameOver;
   const el=document.getElementById('pboard');el.innerHTML='';
   const lm=pSelected?legal(pSelected[0],pSelected[1],board,ep,cr):[];
   const kPos=inChk(turn,board)?findK(turn,board):null;
@@ -808,7 +821,7 @@ function renderPlayerBoard(board,turn,ep,cr,lf,lt,myColor,gameOver){
       if(p){const sp=document.createElement('span');const pc=p[0]==='w'?'white-piece':'black-piece';sp.className='ppiece '+pc;sp.textContent=GL[p]||'';sq.appendChild(sp);}
       if(r===7){const cf=document.createElement('span');cf.className='coord-f';cf.textContent=FILES[f];sq.appendChild(cf);}
       if(f===0){const cr2=document.createElement('span');cr2.className='coord-r';cr2.textContent=8-r;sq.appendChild(cr2);}
-      sq.onclick=()=>handlePClick(r,f,board,turn,ep,cr,myColor,gameOver);
+      sq.onclick=()=>handlePClick(r,f);
       el.appendChild(sq);
     }
   }
@@ -817,28 +830,30 @@ function renderPlayerBoard(board,turn,ep,cr,lf,lt,myColor,gameOver){
   cb.className='pclock '+(turn==='b'?'on':'off');
 }
 
-function handlePClick(r,f,board,turn,ep,cr,myColor,gameOver){
-  if(gameOver||(myRole!=='white'&&myRole!=='black'))return;
-  if(turn!==myColor)return;
-  const piece=board[r][f];
+function handlePClick(r,f){
+  if(!pBoard)return;
+  const myColor=myRole==='white'?'w':'b';
+  if(pGameOver||(myRole!=='white'&&myRole!=='black'))return;
+  if(pTurn!==myColor)return;
+  const piece=pBoard[r][f];
   if(pSelected){
-    const lm=legal(pSelected[0],pSelected[1],board,ep,cr);
+    const lm=legal(pSelected[0],pSelected[1],pBoard,pEp,pCr);
     if(lm.some(([lr,lf])=>lr===r&&lf===f)){
-      const tp=t(board[pSelected[0]][pSelected[1]]);
-      if(tp==='P'&&(r===0||r===7)){showPromo(pSelected[0],pSelected[1],r,f,board,ep,cr,myColor);return;}
-      commitPlayerMove(pSelected[0],pSelected[1],r,f,null,board,ep,cr,myColor);
+      const tp=t(pBoard[pSelected[0]][pSelected[1]]);
+      if(tp==='P'&&(r===0||r===7)){showPromo(pSelected[0],pSelected[1],r,f,pBoard,pEp,pCr,myColor);return;}
+      commitPlayerMove(pSelected[0],pSelected[1],r,f,null,pBoard,pEp,pCr,myColor);
       pSelected=null;return;
     }
   }
-  if(piece&&c(piece)===myColor){pSelected=[r,f];renderPlayerBoard(board,turn,ep,cr,null,null,myColor,gameOver);}
-  else{pSelected=null;renderPlayerBoard(board,turn,ep,cr,null,null,myColor,gameOver);}
+  if(piece&&c(piece)===myColor){pSelected=[r,f];renderPlayerBoard(pBoard,pTurn,pEp,pCr,null,null,myColor,pGameOver);}
+  else{pSelected=null;renderPlayerBoard(pBoard,pTurn,pEp,pCr,null,null,myColor,pGameOver);}
 }
 
 async function commitPlayerMove(r,f,nr,nf,promo,board,ep,cr,myColor){
   const an=toAN(r,f,nr,nf)+(promo?promo.toLowerCase():'');
   const res=applyM(board,r,f,nr,nf,promo,ep,cr);
   const nb=res.board,nep=res.ep,ncr=res.cr;
-  const snap=await(await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js')).then(m=>m.get(ref(db,`rooms/${roomId}/tables/${myTableId}`)));
+  const snap=await get(ref(db,'rooms/'+roomId+'/tables/'+myTableId));
   const g=snap.val()||{};
   const moveLog=[...(g.moveLog||[]),an];
   let capW=[...(g.capW||[])];let capB=[...(g.capB||[])];
