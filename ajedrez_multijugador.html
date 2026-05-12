@@ -72,6 +72,8 @@ header { display: flex; align-items: center; justify-content: space-between; pad
 .sq.check-sq { background: var(--check) !important; }
 .piece { font-size: calc(var(--board-size) / 10); line-height: 1; pointer-events: none; transition: transform 0.12s; }
 .sq.sel .piece { transform: scale(1.1); }
+.piece.wp { color:#fffcf0; -webkit-text-stroke:2.5px #1a1008; paint-order:stroke fill; filter:drop-shadow(1px 2px 2px rgba(0,0,0,0.85)) drop-shadow(0 0 1px #000); }
+.piece.bp { color:#1a1008; -webkit-text-stroke:1.5px #fffcf0; paint-order:stroke fill; filter:drop-shadow(1px 2px 2px rgba(0,0,0,0.6)); }
 .coord-file { position: absolute; bottom: 2px; right: 3px; font-size: 9px; font-family: 'DM Mono', monospace; opacity: 0.5; pointer-events: none; }
 .coord-rank { position: absolute; top: 2px; left: 3px; font-size: 9px; font-family: 'DM Mono', monospace; opacity: 0.5; pointer-events: none; }
 
@@ -536,7 +538,14 @@ function renderBoard(){
       const isHint=legalMoves.some(([lr,lf])=>lr===r&&lf===f);
       if(isHint){sq.classList.add('hint');if(board[r][f])sq.classList.add('cap');}
       const p=board[r][f];
-      if(p){const sp=document.createElement('span');sp.className='piece';sp.textContent=GLYPHS[p]||'';sq.appendChild(sp);}
+      if(p){
+        const cv=document.createElement('canvas');cv.width=54;cv.height=54;
+        cv.style.cssText='width:90%;height:90%;pointer-events:none';
+        const ctx=cv.getContext('2d');ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.font='40px serif';const glyph=GLYPHS[p]||'';
+        if(p[0]==='w'){ctx.strokeStyle='#1a1008';ctx.lineWidth=3;ctx.strokeText(glyph,27,29);ctx.fillStyle='#fffcf0';ctx.fillText(glyph,27,29);}
+        else{ctx.strokeStyle='#fffcf0';ctx.lineWidth=2;ctx.strokeText(glyph,27,29);ctx.fillStyle='#1a1008';ctx.fillText(glyph,27,29);}
+        sq.appendChild(cv);}
       if(r===7){const c=document.createElement('span');c.className='coord-file';c.textContent=FILES[f];sq.appendChild(c);}
       if(f===0){const c=document.createElement('span');c.className='coord-rank';c.textContent=8-r;sq.appendChild(c);}
       sq.onclick=()=>handleSqClick(r,f);
