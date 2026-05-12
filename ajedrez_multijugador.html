@@ -305,6 +305,8 @@ header { display: flex; align-items: center; justify-content: space-between; pad
         <div class="section-label" style="margin-top:8px">ENTRENADOR</div>
         <button class="ctrl-btn" onclick="coachHighlight()" id="coachBtn" style="display:none">🟢 Señalar casilla</button>
         <div id="coachNote" style="font-size:11px;color:var(--muted);padding:6px 8px;background:var(--bg3);border-radius:8px;display:none;"></div>
+        <button class="ctrl-btn" id="btnNuevaPartida" onclick="nuevaPartida()" style="display:none;background:rgba(80,200,120,0.1);border-color:rgba(80,200,120,0.35);color:#50c878;font-weight:600">♟ Nueva partida</button>
+        <button class="ctrl-btn" id="btnRevancha" onclick="revancha()" style="display:none;background:rgba(91,141,238,0.1);border-color:rgba(91,141,238,0.35);color:#5b8dee;font-weight:600">🔄 Revancha</button>
         <div class="section-label" style="margin-top:8px">LIMPIAR SALA</div>
         <button class="ctrl-btn danger" onclick="clearChat()" id="btnClearChat">🗑 Limpiar chat</button>
         <button class="ctrl-btn danger" onclick="clearPlayers()" id="btnClearPlayers">👥 Eliminar jugadores</button>
@@ -464,7 +466,7 @@ window.joinGame = async function(){
 
   const roleTxt={white:'Blancas ♔',black:'Negras ♚',coach:'Entrenador 👁'}[myRole];
   document.getElementById('myRoleBadge').textContent=roleTxt;
-  if(myRole==='coach')document.getElementById('coachBtn').style.display='block';
+  if(myRole==='coach')showCoachButtons();
 
   roomRef = ref(db, 'rooms/'+roomId);
   gameRef = ref(db, 'rooms/'+roomId+'/game');
@@ -747,6 +749,52 @@ window.switchTab=function(name){
   document.querySelectorAll('.tab-content').forEach(t=>{t.classList.toggle('active',t.id==='tab-'+name);});
 };
 
+// ─── NUEVA PARTIDA / REVANCHA ─────────────────────────────────────────────
+window.nuevaPartida=async function(){
+  if(!confirm('¿Iniciar una nueva partida? Se reinicia el tablero.'))return;
+  const snap=await get(ref(db,'rooms/'+roomId+'/game'));
+  const g=snap.val()||{};
+  // Keep same players but reset board
+  const back=['R','N','B','Q','K','B','N','R'];
+  const nb=Array(8).fill(null).map(()=>Array(8).fill(null));
+  for(let f=0;f<8;f++){nb[0][f]='b'+back[f];nb[1][f]='bP';nb[6][f]='wP';nb[7][f]='w'+back[f];}
+  const bStr=nb.map(r=>r.map(c=>c||'').join(',')).join(';');
+  await update(ref(db,'rooms/'+roomId+'/game'),{
+    board:bStr,turn:'w',enPassant:null,
+    castleRights:{wK:true,wQ:true,bK:true,bQ:true},
+    moveLog:[],capW:[],capB:[],gameOver:false,
+    lastFrom:null,lastTo:null,status:'playing'
+  });
+  await remove(ref(db,'rooms/'+roomId+'/chat'));
+  document.getElementById('chatMessages').innerHTML='';
+  document.getElementById('moveHistory').innerHTML='';
+  addSysMsg('♟ Nueva partida iniciada por el entrenador.');
+};
+
+window.revancha=async function(){
+  if(!confirm('¿Iniciar revancha? Se reinicia el tablero con los colores invertidos.'))return;
+  const snap=await get(ref(db,'rooms/'+roomId+'/game'));
+  const g=snap.val()||{};
+  // Swap player names/roles
+  const nw=g.nameBlack||'Negras';
+  const nb2=g.nameWhite||'Blancas';
+  const back=['R','N','B','Q','K','B','N','R'];
+  const board=Array(8).fill(null).map(()=>Array(8).fill(null));
+  for(let f=0;f<8;f++){board[0][f]='b'+back[f];board[1][f]='bP';board[6][f]='wP';board[7][f]='w'+back[f];}
+  const bStr=board.map(r=>r.map(c=>c||'').join(',')).join(';');
+  await update(ref(db,'rooms/'+roomId+'/game'),{
+    board:bStr,turn:'w',enPassant:null,
+    castleRights:{wK:true,wQ:true,bK:true,bQ:true},
+    moveLog:[],capW:[],capB:[],gameOver:false,
+    lastFrom:null,lastTo:null,status:'playing',
+    nameWhite:nw,nameBlack:nb2
+  });
+  await remove(ref(db,'rooms/'+roomId+'/chat'));
+  document.getElementById('chatMessages').innerHTML='';
+  document.getElementById('moveHistory').innerHTML='';
+  addSysMsg('🔄 Revancha! '+nw+' (Blancas) vs '+nb2+' (Negras)');
+};
+
 // ─── CLEAR FUNCTIONS ──────────────────────────────────────────────────────
 window.clearChat=async function(){
   if(!confirm('¿Limpiar todos los mensajes del chat?'))return;
@@ -787,6 +835,15 @@ window.resignGame=async function(){
 // ─── COACH ─────────────────────────────────────────────────────────────────
 let coachMode=false;
 window.coachHighlight=function(){coachMode=!coachMode;document.getElementById('coachBtn').textContent=coachMode?'🟢 Modo señalar: ON':'🟢 Señalar casilla';};
+
+function showCoachButtons(){
+  const b=document.getElementById('coachBtn');
+  const np=document.getElementById('btnNuevaPartida');
+  const rv=document.getElementById('btnRevancha');
+  if(b)b.style.display='block';
+  if(np)np.style.display='block';
+  if(rv)rv.style.display='block';
+}
 async function coachHighlightSq(r,f){
   if(!coachMode)return;
   await update(gameRef,{coachHL:[r,f]});
