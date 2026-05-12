@@ -360,7 +360,10 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-
         <div id="rankingList"></div>
       </div>
       <div class="chat-panel" style="flex:1">
-        <div class="section-hdr" style="padding:8px 10px 4px">💬 Chat global</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px 4px">
+          <div class="section-hdr" style="padding:0">💬 Chat global</div>
+          <button onclick="clearChat()" style="font-size:10px;padding:2px 8px;background:rgba(220,80,80,0.12);border:1px solid rgba(220,80,80,0.25);color:#ff8080;border-radius:6px;cursor:pointer">Limpiar chat</button>
+        </div>
         <div class="chat-msgs" id="cCoachMsgs"></div>
         <div class="chat-input-row">
           <input class="chat-inp" id="cCoachInp" placeholder="Mensaje a todos..." onkeydown="if(event.key==='Enter')sendGlobalChat()"/>
@@ -759,12 +762,29 @@ window.confirmAssign=async function(){
 };
 
 window.clearRoom=async function(){
-  if(!confirm('¿Limpiar TODA la sala? Esto elimina todas las mesas, jugadores e historial.'))return;
+  if(!confirm('¿Limpiar TODO? Se eliminan mesas, jugadores, chat y sala completa.'))return;
   const fbdb=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
-  await fbdb.remove(ref(db,'rooms/'+roomId+'/tables'));
-  await fbdb.remove(ref(db,'rooms/'+roomId+'/users'));
+  // Remove everything under this room
+  await fbdb.remove(ref(db,'rooms/'+roomId));
+  // Clear all chat UI
+  document.getElementById('cCoachMsgs').innerHTML='';
+  // Clear boards grid
+  document.getElementById('boardsGrid').innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:3rem;font-size:14px">Sala limpiada. Crea nuevas partidas.</div>';
+  // Clear students list
+  document.getElementById('studentsList').innerHTML='';
+  // Clear ranking
+  document.getElementById('rankingList').innerHTML='';
+  // Reset counters
+  document.getElementById('cOnline').textContent='0';
+  document.getElementById('cGames').textContent='0';
+  alert('✓ Sala completamente limpia. Los estudiantes deben volver a entrar con el mismo codigo: '+roomId);
+};
+
+window.clearChat=async function(){
+  if(!confirm('¿Limpiar el chat?'))return;
+  const fbdb=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
   await fbdb.remove(ref(db,'rooms/'+roomId+'/chat'));
-  alert('Sala limpiada. Los jugadores deberan volver a entrar.');
+  document.getElementById('cCoachMsgs').innerHTML='';
 };
 
 window.sendGlobalChat=async function(){
