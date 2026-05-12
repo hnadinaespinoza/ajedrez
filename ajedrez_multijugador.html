@@ -272,6 +272,9 @@ header { display: flex; align-items: center; justify-content: space-between; pad
 
     <!-- CHAT TAB -->
     <div class="tab-content active" id="tab-chat">
+      <div style="display:flex;justify-content:flex-end;padding:6px 10px 0;gap:6px;flex-shrink:0">
+        <button onclick="clearChat()" style="font-size:11px;padding:3px 10px;background:rgba(220,80,80,0.12);border:1px solid rgba(220,80,80,0.3);color:#ff8080;border-radius:6px;cursor:pointer">🗑 Limpiar chat</button>
+      </div>
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-input-area">
         <div class="chat-row">
@@ -302,6 +305,10 @@ header { display: flex; align-items: center; justify-content: space-between; pad
         <div class="section-label" style="margin-top:8px">ENTRENADOR</div>
         <button class="ctrl-btn" onclick="coachHighlight()" id="coachBtn" style="display:none">🟢 Señalar casilla</button>
         <div id="coachNote" style="font-size:11px;color:var(--muted);padding:6px 8px;background:var(--bg3);border-radius:8px;display:none;"></div>
+        <div class="section-label" style="margin-top:8px">LIMPIAR SALA</div>
+        <button class="ctrl-btn danger" onclick="clearChat()" id="btnClearChat">🗑 Limpiar chat</button>
+        <button class="ctrl-btn danger" onclick="clearPlayers()" id="btnClearPlayers">👥 Eliminar jugadores</button>
+        <button class="ctrl-btn danger" onclick="clearRoom()" id="btnClearRoom" style="border-color:rgba(220,50,50,0.5);font-weight:600">⚠️ Limpiar TODA la sala</button>
       </div>
     </div>
   </div>
@@ -738,6 +745,29 @@ function renderPlayersList(users){
 window.switchTab=function(name){
   document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active',['chat','players','game'][i]===name);});
   document.querySelectorAll('.tab-content').forEach(t=>{t.classList.toggle('active',t.id==='tab-'+name);});
+};
+
+// ─── CLEAR FUNCTIONS ──────────────────────────────────────────────────────
+window.clearChat=async function(){
+  if(!confirm('¿Limpiar todos los mensajes del chat?'))return;
+  await remove(ref(db,'rooms/'+roomId+'/chat'));
+  document.getElementById('chatMessages').innerHTML='';
+};
+
+window.clearPlayers=async function(){
+  if(!confirm('¿Eliminar todos los jugadores de la sala?'))return;
+  await remove(ref(db,'rooms/'+roomId+'/users'));
+  document.getElementById('playersList').innerHTML='';
+  addSysMsg('Sala de jugadores limpiada.');
+};
+
+window.clearRoom=async function(){
+  if(!confirm('¿Limpiar TODA la sala? Se elimina la partida, jugadores y chat completamente.'))return;
+  await remove(ref(db,'rooms/'+roomId));
+  document.getElementById('chatMessages').innerHTML='';
+  document.getElementById('playersList').innerHTML='';
+  document.getElementById('moveHistory').innerHTML='';
+  addSysMsg('✓ Sala completamente limpiada. Los jugadores deben volver a entrar.');
 };
 
 // ─── CONTROLS ──────────────────────────────────────────────────────────────
