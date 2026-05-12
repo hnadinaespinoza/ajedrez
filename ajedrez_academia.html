@@ -574,13 +574,20 @@ function renderStudents(users){
   const el=document.getElementById('studentsList');el.innerHTML='';
   Object.entries(users).forEach(([id,u])=>{
     if(!u.online)return;
+    if(u.role==='coach')return;
     const d=document.createElement('div');d.className='student-row';
     const roleMap={white:'av-w',black:'av-b',coach:'av-c',spectator:'av-s'};
-    const rl={white:'B',black:'N',coach:'C',spectator:'E'}[u.role]||'?';
-    d.innerHTML=`<div class="s-avatar ${roleMap[u.role]||'av-s'}">${u.name[0].toUpperCase()}</div><div class="s-name">${u.name}</div><span class="s-role">${rl}</span>`;
+    const rl={white:'♔',black:'♚',coach:'C',spectator:'👁'}[u.role]||'?';
+    d.innerHTML=`<div class="s-avatar ${roleMap[u.role]||'av-s'}">${u.name[0].toUpperCase()}</div><div class="s-name">${u.name}</div><span class="s-role">${rl}</span><button onclick="kickPlayer('${id}','${u.name}')" title="Eliminar de la sala" style="background:rgba(220,80,80,0.15);border:1px solid rgba(220,80,80,0.3);color:#ff8080;border-radius:6px;padding:2px 7px;font-size:11px;cursor:pointer;margin-left:4px">✕</button>`;
     el.appendChild(d);
   });
 }
+
+window.kickPlayer=async function(userId, userName){
+  if(!confirm('¿Eliminar a '+userName+' de la sala?'))return;
+  await update(ref(db,`rooms/${roomId}/users/${userId}`),{online:false,kicked:true});
+  await push(ref(db,`rooms/${roomId}/chat`),{type:'system',text:'⛔ '+userName+' fue eliminado de la sala.',ts:serverTimestamp()});
+};
 
 function renderRanking(users,elId){
   const el=document.getElementById(elId);if(!el)return;
@@ -693,10 +700,15 @@ function showPlayer(){
   rt.textContent=roleLabels[myRole]||myRole;
   rt.className='role-tag '+(roleClasses[myRole]||'rt-spec');
 
-  // listen for assignment
+  // listen for assignment + kick
   onValue(ref(db,`rooms/${roomId}/users/${uid}`),snap=>{
     const u=snap.val();
     if(!u)return;
+    if(u.kicked){
+      alert('El entrenador te ha eliminado de la sala.');
+      location.reload();
+      return;
+    }
     if(u.assignedTable&&u.assignedTable!==myTableId){
       myTableId=u.assignedTable;
       myRole=u.assignedRole||myRole;
